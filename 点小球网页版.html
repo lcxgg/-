@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>点小球</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f1720;
+      --panel: rgba(255, 255, 255, 0.06);
+      --panel-border: rgba(255, 255, 255, 0.1);
+      --text: #eef4ff;
+      --muted: #9fb0c7;
+      --accent: #2ec4b6;
+      --accent-soft: rgba(46, 196, 182, 0.18);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+    }
+
+    .app {
+      min-height: 100vh;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .toolbar,
+    .metrics,
+    .content {
+      display: flex;
+      gap: 12px;
+    }
+
+    .toolbar {
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    .toolbar-spacer {
+      flex: 1 1 180px;
+    }
+
+    input,
+    select,
+    button {
+      min-height: 40px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.06);
+      padding: 0 12px;
+      font: inherit;
+    }
+
+    input {
+      width: 160px;
+    }
+
+    button {
+      background: var(--accent-soft);
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: rgba(46, 196, 182, 0.28);
+      border-color: rgba(46, 196, 182, 0.75);
+    }
+
+    .metric,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .metric {
+      padding: 12px 14px;
+    }
+
+    .metric-value {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    .content {
+      flex: 1;
+      min-height: 520px;
+    }
+
+    .game-wrap {
+      flex: 3;
+      min-width: 0;
+      position: relative;
+      overflow: hidden;
+      border-radius: 8px;
+      background:
+        linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(135deg, #152230, #101820);
+      background-size: 40px 40px, 40px 40px, auto;
+      border: 1px solid var(--panel-border);
+      cursor: crosshair;
+    }
+
+    .game-wrap::before {
+      content: "点击“开始游戏”";
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 20px;
+      opacity: 1;
+      transition: opacity 160ms ease;
+    }
+
+    .game-wrap.active::before {
+      opacity: 0;
+    }
+
+    .ball {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(circle at 30% 30%, #8ff7ea, #2ec4b6);
+      border: 2px solid #d8fff9;
+      box-shadow: 0 0 0 0 rgba(46, 196, 182, 0.3), 0 0 30px rgba(46, 196, 182, 0.45);
+      display: none;
+    }
+
+    .ball.visible {
+      display: block;
+    }
+
+    .ripple {
+      position: absolute;
+      border: 3px solid rgba(143, 247, 234, 0.9);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      animation: ripple 420ms ease-out forwards;
+    }
+
+    @keyframes ripple {
+      from {
+        width: 18px;
+        height: 18px;
+        opacity: 1;
+      }
+      to {
+        width: 96px;
+        height: 96px;
+        opacity: 0;
+      }
+    }
+
+    .side {
+      flex: 2;
+      min-width: 320px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .side-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .side-header h2 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .side-header button {
+      margin-left: auto;
+      min-height: 34px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    th,
+    td {
+      padding: 10px 8px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 14px;
+    }
+
+    th {
+      color: #dce7f7;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    dialog {
+      width: min(360px, calc(100vw - 32px));
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 10px;
+      background: #18222d;
+      color: var(--text);
+      padding: 0;
+    }
+
+    dialog::backdrop {
+      background: rgba(0, 0, 0, 0.45);
+    }
+
+    .dialog-body {
+      padding: 18px;
+    }
+
+    .dialog-body h3 {
+      margin: 0 0 12px;
+    }
+
+    .dialog-body p {
+      margin: 8px 0;
+    }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      padding-top: 12px;
+    }
+
+    @media (max-width: 900px) {
+      .metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .content {
+        flex-direction: column;
+      }
+
+      .game-wrap {
+        min-height: 420px;
+      }
+
+      .side {
+        min-width: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="toolbar">
+      <h1>点小球</h1>
+      <div class="toolbar-spacer"></div>
+      <input id="playerName" type="text" placeholder="玩家姓名">
+      <select id="mode">
+        <option value="rounds">固定次数</option>
+        <option value="countdown">倒计时</option>
+      </select>
+      <input id="duration" type="number" min="10" max="180" value="30" hidden>
+      <button id="startBtn">开始游戏</button>
+    </section>
+
+    <section class="metrics">
+      <div class="metric">
+        <div class="metric-value" id="correct">0</div>
+        <div class="metric-label">正确</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value" id="wrong">0</div>
+        <div class="metric-label">错误</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value" id="remaining">20</div>
+        <div class="metric-label">剩余次数</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value" id="timeLeft">--</div>
+        <div class="metric-label">剩余时间</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value" id="accuracy">0.00%</div>
+        <div class="metric-label">准确率</div>
+      </div>
+    </section>
+
+    <section class="content">
+      <div class="game-wrap" id="gameArea">
+        <div class="ball" id="ball"></div>
+      </div>
+
+      <aside class="panel side">
+        <div class="side-header">
+          <h2>排行榜</h2>
+          <button id="clearBtn">清空</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>排名</th>
+              <th>玩家</th>
+              <th>准确率</th>
+              <th>成绩</th>
+              <th>时间</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard"></tbody>
+        </table>
+      </aside>
+    </section>
+  </main>
+
+  <dialog id="resultDialog">
+    <div class="dialog-body">
+      <h3>游戏结束</h3>
+      <p id="resultText"></p>
+      <div class="dialog-actions">
+        <button id="closeDialog">确定</button>
+      </div>
+    </div>
+  </dialog>
+
+  <audio id="hitSound" src="点小球_hit.wav" preload="auto"></audio>
+  <audio id="missSound" src="点小球_miss.wav" preload="auto"></audio>
+
+  <script>
+    const TOTAL_ROUNDS = 20;
+    const START_RADIUS = 30;
+    const MIN_RADIUS = 16;
+    const STORAGE_KEY = "ball-click-leaderboard";
+
+    const gameArea = document.getElementById("gameArea");
+    const ball = document.getElementById("ball");
+    const startBtn = document.getElementById("startBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const playerName = document.getElementById("playerName");
+    const mode = document.getElementById("mode");
+    const duration = document.getElementById("duration");
+    const correctEl = document.getElementById("correct");
+    const wrongEl = document.getElementById("wrong");
+    const remainingEl = document.getElementById("remaining");
+    const timeLeftEl = document.getElementById("timeLeft");
+    const accuracyEl = document.getElementById("accuracy");
+    const leaderboardEl = document.getElementById("leaderboard");
+    const resultDialog = document.getElementById("resultDialog");
+    const resultText = document.getElementById("resultText");
+    const closeDialog = document.getElementById("closeDialog");
+    const hitSound = document.getElementById("hitSound");
+    const missSound = document.getElementById("missSound");
+
+    let correct = 0;
+    let wrong = 0;
+    let remaining = TOTAL_ROUNDS;
+    let secondsLeft = Number(duration.value);
+    let running = false;
+    let ballX = 0;
+    let ballY = 0;
+    let moveTimer = null;
+    let countdownTimer = null;
+    let leaderboard = loadLeaderboard();
+
+    function isCountdown() {
+      return mode.value === "countdown";
+    }
+
+    function accuracy() {
+      const total = correct + wrong;
+      return total ? correct / total : 0;
+    }
+
+    function progressRatio() {
+      if (isCountdown()) {
+        return 1 - Math.max(0, secondsLeft) / Math.max(1, Number(duration.value));
+      }
+      return Math.min(1, (correct + wrong) / TOTAL_ROUNDS);
+    }
+
+    function currentRadius() {
+      return Math.round(START_RADIUS - (START_RADIUS - MIN_RADIUS) * progressRatio());
+    }
+
+    function currentMoveInterval() {
+      return Math.round(1600 - 900 * progressRatio());
+    }
+
+    function refreshMetrics() {
+      correctEl.textContent = correct;
+      wrongEl.textContent = wrong;
+      remainingEl.textContent = isCountdown() ? "--" : remaining;
+      timeLeftEl.textContent = isCountdown() ? `${secondsLeft}s` : "--";
+      accuracyEl.textContent = `${(accuracy() * 100).toFixed(2)}%`;
+    }
+
+    function randomizeBall() {
+      const rect = gameArea.getBoundingClientRect();
+      const radius = currentRadius();
+      const margin = radius + 12;
+      ballX = margin + Math.random() * Math.max(1, rect.width - margin * 2);
+      ballY = margin + Math.random() * Math.max(1, rect.height - margin * 2);
+      ball.style.width = `${radius * 2}px`;
+      ball.style.height = `${radius * 2}px`;
+      ball.style.left = `${ballX}px`;
+      ball.style.top = `${ballY}px`;
+    }
+
+    function restartMoveTimer() {
+      clearInterval(moveTimer);
+      moveTimer = setInterval(randomizeBall, currentMoveInterval());
+    }
+
+    function startGame() {
+      if (!playerName.value.trim()) {
+        alert("请先输入玩家姓名");
+        return;
+      }
+
+      clearInterval(countdownTimer);
+      correct = 0;
+      wrong = 0;
+      remaining = TOTAL_ROUNDS;
+      secondsLeft = Number(duration.value);
+      running = true;
+      startBtn.textContent = "重新开始";
+      gameArea.classList.add("active");
+      ball.classList.add("visible");
+      randomizeBall();
+      restartMoveTimer();
+
+      if (isCountdown()) {
+        countdownTimer = setInterval(() => {
+          secondsLeft -= 1;
+          refreshMetrics();
+          if (secondsLeft <= 0) finishGame();
+        }, 1000);
+      }
+      refreshMetrics();
+    }
+
+    function handleClick(event) {
+      if (!running) return;
+      const rect = gameArea.getBoundingClientRect();
+      const clickX = event.clientX - rect.left;
+      const clickY = event.clientY - rect.top;
+      const radius = currentRadius();
+      const hit = (clickX - ballX) ** 2 + (clickY - ballY) ** 2 <= radius ** 2;
+
+      if (hit) {
+        correct += 1;
+        playSound(hitSound);
+        spawnRipple(ballX, ballY);
+        randomizeBall();
+      } else {
+        wrong += 1;
+        playSound(missSound);
+      }
+
+      if (!isCountdown()) remaining -= 1;
+      restartMoveTimer();
+      refreshMetrics();
+
+      if (!isCountdown() && remaining <= 0) finishGame();
+    }
+
+    function spawnRipple(x, y) {
+      const ripple = document.createElement("div");
+      ripple.className = "ripple";
+      ripple.style.left = `${x}px`;
+      ripple.style.top = `${y}px`;
+      gameArea.appendChild(ripple);
+      ripple.addEventListener("animationend", () => ripple.remove(), { once: true });
+    }
+
+    function playSound(audio) {
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+    }
+
+    function finishGame() {
+      if (!running) return;
+      running = false;
+      clearInterval(moveTimer);
+      clearInterval(countdownTimer);
+      gameArea.classList.remove("active");
+      ball.classList.remove("visible");
+
+      const entry = {
+        player: playerName.value.trim(),
+        accuracy: accuracy(),
+        correct,
+        wrong,
+        playedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+      };
+      leaderboard.push(entry);
+      leaderboard.sort((a, b) =>
+        b.accuracy - a.accuracy ||
+        b.correct - a.correct ||
+        a.wrong - b.wrong ||
+        a.playedAt.localeCompare(b.playedAt)
+      );
+      leaderboard = leaderboard.slice(0, 10);
+      saveLeaderboard();
+      renderLeaderboard();
+
+      resultText.innerHTML = `正确：${correct}<br>错误：${wrong}<br>准确率：${(accuracy() * 100).toFixed(2)}%`;
+      resultDialog.showModal();
+    }
+
+    function loadLeaderboard() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveLeaderboard() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(leaderboard));
+    }
+
+    function renderLeaderboard() {
+      leaderboardEl.innerHTML = "";
+      leaderboard.forEach((entry, index) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${index + 1}</td>
+          <td>${entry.player || "匿名"}</td>
+          <td>${(entry.accuracy * 100).toFixed(2)}%</td>
+          <td>${entry.correct} / ${entry.correct + entry.wrong}</td>
+          <td>${entry.playedAt}</td>
+        `;
+        leaderboardEl.appendChild(row);
+      });
+    }
+
+    mode.addEventListener("change", () => {
+      duration.hidden = !isCountdown();
+      refreshMetrics();
+    });
+    startBtn.addEventListener("click", startGame);
+    gameArea.addEventListener("click", handleClick);
+    clearBtn.addEventListener("click", () => {
+      if (!confirm("确定清空全部排行榜记录吗？")) return;
+      leaderboard = [];
+      saveLeaderboard();
+      renderLeaderboard();
+    });
+    closeDialog.addEventListener("click", () => resultDialog.close());
+    window.addEventListener("resize", () => {
+      if (running) randomizeBall();
+    });
+
+    renderLeaderboard();
+    refreshMetrics();
+  </script>
+</body>
+</html>
